@@ -6,45 +6,60 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 @Controller
 public class WeatherController {
 
+    // Az API kulcs az application.properties fájlból van beolvasva
     @Value("${api.key}")
-    private String apiKey; // Az API kulcs az időjárási adatok lekéréséhez
+    private String apiKey;
 
+    // Az alkalmazás kezdőlapját kezelő végpont
     @GetMapping("/")
     public String getIndex() {
-        return "index"; // A kezdőoldal megjelenítése
+        return "index"; // Az index.html visszatérése
     }
 
+    // Az időjárási adatok lekéréséért felelős végpont
     @GetMapping("/weather")
     public String getWeather(@RequestParam("city") String city, Model model) {
-        // Az API URL összeállítása a városnévvel és az API kulccsal
-        String url = "http://api.openweathermap.org/data/2.5/weather?q=" + city + "&appid=" + apiKey + "&units=metric";
-
-        RestTemplate restTemplate = new RestTemplate(); // REST kliens inicializálása
-
-        // Az időjárási adatok lekérése és betöltése a WeatherResponse modellbe
-        WeatherResponse weatherResponse = restTemplate.getForObject(url, WeatherResponse.class);
-
-        if (weatherResponse != null) {
-            // Az időjárási adatok hozzáadása a modellhez megjelenítéshez
-            model.addAttribute("city", weatherResponse.getName()); // Város neve
-            model.addAttribute("country", weatherResponse.getSys().getCountry()); // Ország kódja
-            model.addAttribute("weatherDescription", weatherResponse.getWeather().get(0).getDescription()); // Időjárás leírása
-            model.addAttribute("temperature", weatherResponse.getMain().getTemp()); // Hőmérséklet
-            model.addAttribute("humidity", weatherResponse.getMain().getHumidity()); // Páratartalom
-            model.addAttribute("windSpeed", weatherResponse.getWind().getSpeed()); // Szélsebesség
-
-            // Időjárási ikon osztályának összeállítása
-            String weatherIcon = "wi wi-owm-" + weatherResponse.getWeather().get(0).getId();
-            model.addAttribute("weatherIcon", weatherIcon); // Időjárási ikon
-        } else {
-            model.addAttribute("error", "City not found."); // Hibaüzenet, ha a város nem található
+        // Ellenőrizzük, hogy a város neve nem üres vagy null
+        if (city == null || city.trim().isEmpty()) {
+            model.addAttribute("error", "A város neve nem lehet üres."); // Hibaüzenet hozzáadása a modellhez
+            return "weather"; // Az időjárási oldal visszatérése hibaüzenettel
         }
 
-        return "weather"; // Az időjárási adatok megjelenítése az "weather" oldalon
+        try {
+            // API URL összeállítása a megadott várossal és API kulccsal
+            String url = "http://api.openweathermap.org/data/2.5/weather?q=" + city + "&appid=" + apiKey + "&units=metric";
+            RestTemplate restTemplate = new RestTemplate();
+
+            // API hívás az időjárási adatok lekéréséhez
+            WeatherResponse weatherResponse = restTemplate.getForObject(url, WeatherResponse.class);
+
+            // Ha van válasz az API-tól, az adatokat hozzáadjuk a modellhez
+            if (weatherResponse != null) {
+                model.addAttribute("city", weatherResponse.getName()); // Város neve
+                model.addAttribute("country", weatherResponse.getSys().getCountry()); // Ország kódja
+                model.addAttribute("weatherDescription", weatherResponse.getWeather().get(0).getDescription()); // Időjárási leírás
+                model.addAttribute("temperature", weatherResponse.getMain().getTemp()); // Hőmérséklet
+                model.addAttribute("humidity", weatherResponse.getMain().getHumidity()); // Páratartalom
+                model.addAttribute("windSpeed", weatherResponse.getWind().getSpeed()); // Szélsebesség
+
+                // Időjárási ikon az ID alapján
+                String weatherIcon = "wi wi-owm-" + weatherResponse.getWeather().get(0).getId();
+                model.addAttribute("weatherIcon", weatherIcon);
+            } else {
+                // Ha a válasz null, hibaüzenetet adunk hozzá
+                model.addAttribute("error", "A város nem található.");
+            }
+        } catch (RestClientException e) {
+            // API hívás közbeni hiba esetén
+            model.addAttribute("error", "Hiba történt az időjárási adatok lekérése közben: " + e.getMessage());
+        }
+
+        return "weather"; // Az időjárási oldal visszatérése
     }
 }

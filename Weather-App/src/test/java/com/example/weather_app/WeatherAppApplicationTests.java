@@ -14,7 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 class WeatherAppApplicationIntegrationTests {
 
 	@Autowired
-	private MockMvc mockMvc; //szimuláló környezet, amivel a tesztet elvégzem, hálózati hozzáférés hiányában is
+	private MockMvc mockMvc; //szimuláló környezet, amivel a tesztet elvégzem
 
 	@Test
 	void shouldReturnIndexPage() throws Exception {
